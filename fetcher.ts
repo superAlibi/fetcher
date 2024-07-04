@@ -11,19 +11,19 @@ class InterceptorEvent extends Event {
     this.data = data;
   }
 }
-type RequestInterceptor = (
+export type RequestInterceptor = (
   req: InterceptorConfig,
 ) => Omit<InterceptorConfig, "data"> | Promise<Omit<InterceptorConfig, "data">>;
-type ResponseInterceptor<T = unknown> = (
+export type ResponseInterceptor<T = unknown> = (
   resp: Response,
 ) => T | Promise<T>;
-interface FetherConfig extends RequestInit {
+export interface FetherConfig extends RequestInit {
   params?: string[][] | Record<string, string> | string | URLSearchParams;
   data?: unknown;
   requestInterceptor?: RequestInterceptor;
   responseInterceptor?: ResponseInterceptor;
 }
-interface InterceptorConfig extends FetherConfig {
+export interface InterceptorConfig extends FetherConfig {
   url: string;
 }
 
