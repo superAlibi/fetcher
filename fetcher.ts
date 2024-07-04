@@ -1,4 +1,5 @@
 import { SyncEventDispatcher } from "./sync-event-dispatcher.ts";
+import { deepMerge } from '@cross/deepmerge'
 type EventType = "beforeRequest" | "afterResponse";
 class InterceptorEvent extends Event {
   public config?: FetherConfig;
@@ -14,11 +15,12 @@ class InterceptorEvent extends Event {
 export type RequestInterceptor = (
   req: InterceptorConfig,
 ) => Omit<InterceptorConfig, "data"> | Promise<Omit<InterceptorConfig, "data">>;
+
 export type ResponseInterceptor<T = unknown> = (
   resp: Response,
 ) => T | Promise<T>;
 export interface FetherConfig extends RequestInit {
-  params?: string[][] | Record<string, string> | string | URLSearchParams;
+  params?: ConstructorParameters<typeof URLSearchParams>[number];
   data?: unknown;
   requestInterceptor?: RequestInterceptor;
   responseInterceptor?: ResponseInterceptor;
@@ -26,38 +28,36 @@ export interface FetherConfig extends RequestInit {
 export interface InterceptorConfig extends FetherConfig {
   url: string;
 }
-
+/**
+ * 全局默认配置
+ * 仅仅配置了content-type=application/json
+ */
+export const defaultConfig: FetherConfig = {
+  headers: {
+    "Content-Type": "application/json",
+  },
+};
 export class Fetcher extends SyncEventDispatcher<{
   beforeRequest: InterceptorEvent;
   afterResponse: InterceptorEvent;
 }> {
-  public baseURL: string;
   constructor(
-    baseURL: string,
-    public config: FetherConfig = {
-      headers: {
-        "Content-Type": "application/json",
-      },
-    },
+    public baseURL: string,
+    public config: FetherConfig,
   ) {
     super();
-    if (baseURL.endsWith("/")) {
-      this.baseURL = baseURL.slice(0);
-    } else {
-      this.baseURL = baseURL + "/";
-    }
   }
-  static concatURL(baseURL: string, url: string): string {
+  static concatURL(baseURL: string, pathname: string): string {
     if (!baseURL.endsWith("/")) {
       baseURL += "/";
     }
-    if (url.startsWith("/")) {
-      return baseURL + url.slice(1);
+    if (pathname.startsWith("/")) {
+      return baseURL + pathname.slice(1);
     }
-    return baseURL + url;
+    return baseURL + pathname;
   }
-  private getFormatedURL(url: string) {
-    return Fetcher.concatURL(this.baseURL, url);
+  private getFormatedURL(pathname: string) {
+    return Fetcher.concatURL(this.baseURL, pathname);
   }
   /**
    * 如果options中存在data,那么会忽略body
@@ -67,10 +67,11 @@ export class Fetcher extends SyncEventDispatcher<{
    */
   public async request<T = unknown>(
     url: string,
-    options: Omit<FetherConfig, "url"> = {},
+    options: FetherConfig = {
+    },
   ): Promise<T> {
-    let { params, data, body, requestInterceptor, responseInterceptor } =
-      options;
+    let { params, data, body, requestInterceptor, responseInterceptor } = deepMerge(defaultConfig, options);
+
 
     let req: Request;
     if (requestInterceptor) {
@@ -136,9 +137,15 @@ export class Fetcher extends SyncEventDispatcher<{
       return Promise.reject(resp);
     });
   }
+  /**
+   * 发起 http methods=get的请求
+   * @param url 相对baseURL的地址
+   * @param options 请求选项
+   * @returns 
+   */
   public get<T = unknown>(
     url: string,
-    options: Omit<FetherConfig, "url" | "body" | "data"> = {},
+    options: Omit<FetherConfig, "body" | "data"> = {},
   ): Promise<T> {
     return this.request<T>(url, {
       ...this.config,
@@ -146,9 +153,15 @@ export class Fetcher extends SyncEventDispatcher<{
       method: "GET",
     });
   }
+  /**
+   * 发起http method=post的请求
+   * @param url  相对baseURL的pathname
+   * @param options 其他请求选项
+   * @returns 
+   */
   public post<T = unknown>(
     url: string,
-    options: Omit<FetherConfig, "url"> = {},
+    options: FetherConfig = {},
   ): Promise<T> {
     return this.request<T>(url, {
       ...this.config,
@@ -172,7 +185,7 @@ export class Fetcher extends SyncEventDispatcher<{
    */
   public options<T = unknown>(
     url: string,
-    options: Omit<FetherConfig, "url"> = {},
+    options: FetherConfig = {},
   ): Promise<T> {
     return this.request<T>(url, {
       ...this.config,
@@ -181,6 +194,11 @@ export class Fetcher extends SyncEventDispatcher<{
     });
   }
 }
+/**
+ * 辅助创建Fetcher工具函数
+ * @param option 
+ * @returns 
+ */
 export const createFetcher = (
   option: FetherConfig & { baseURL?: string },
 ): Fetcher => {
