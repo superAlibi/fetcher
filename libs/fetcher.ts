@@ -151,7 +151,7 @@ export class Fetcher extends SyncEventDispatcher<{
    * @param options 
    * @returns 
    */
-  public head(url: string, options: Omit<FetherConfig, "body"> = {}) {
+  public head(url: string, options: Omit<FetherConfig, "body"> = {}): Promise<Response> {
     return this.request(url, {
       ...this.config,
       ...options,
