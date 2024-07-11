@@ -13,15 +13,26 @@
 而不想关心内部实现,标准原生的就很好.不想关心什么兼容性
 
 ### 其三
-axios有个比较讨厌的点,在拦截器中无法拦截处理http状态码
+axios有个比较讨厌的点,在拦截器中无法拦截处理非200的http状态码
 
-最显然的特点就是http返回403或者500错误
+常见的http返回400系列或者500系列错误
 
-但是我希望拦截器可以拦截到非200的状态码,因为即使是403错误,服务端也正常返回了响应体的
+但是我希望拦截器可以拦截到非200的状态码,即使是403错误,服务器也有可能返回了正确的提示
 
-此时,axios直接不会经过拦截器,直接返回整个链路错误,表现为在业务层直接报错,我tm...
+例如,服务器返回503,服务器方返回业务消息
+```json
+{
+    "code": 503,
+    "message": "服务器维护中"
+}
+```
+以上消息,本来在拦截器都可以处理的问题,
 
-所以,我决定自己封装一个fetch
+但是axios不经过拦截器,而是跳过了拦截器,直接返回到业务层报错,
+
+我tm...
+
+由此,决定自己封装一个fetch
 
 ## 使用
 
@@ -48,9 +59,6 @@ import {createFetcher} from 'jsr:@advance/fetcher'
 
 const fetcher = createFetcher({
     baseUrl: 'http://domain.exmaple',
-    headers: {
-        'Content-Type': 'application/json'
-    },
     requestInterceptor:(reqinit:InterceptorConfig)=>{
         reqinit.headers['Authorization'] = 'Digest username=un'
     }
@@ -68,9 +76,6 @@ import {createFetcher} from 'jsr:@advance/fetcher'
 
 const fetcher = createFetcher({
     baseUrl: 'http://domain.exmaple',
-    headers: {
-        'Content-Type': 'application/json'
-    }
 })
 
 fetcher.addEventListener('request',(reqinit:InterceptorConfig)=>{
