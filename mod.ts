@@ -1,2 +1,2 @@
-export * from './fetcher.ts'
-export * from './sync-event-dispatcher.ts'
+export * from '~/libs/fetcher.ts'
+export * from '~/libs/sync-event-dispatcher.ts'
