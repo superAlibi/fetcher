@@ -141,7 +141,8 @@ export class Fetcher extends SyncEventDispatcher<{
     return result
   }
   /**
-   * 如果options中存在那么会忽略body
+   * 请求核心方法
+   * 其他所有具名方法均调用此方法
    * @param url
    * @param options
    * @returns
@@ -176,6 +177,9 @@ export class Fetcher extends SyncEventDispatcher<{
       method: "GET",
     });
   }
+  /**
+   * @alias Fetcher.get
+   */
   public GET = this.get
   /**
    * 发起http method=post的请求
@@ -193,6 +197,9 @@ export class Fetcher extends SyncEventDispatcher<{
       method: "POST",
     });
   }
+  /**
+   * @alias Fetcher.post
+   */
   public POST = this.post
   /**
    * method为 head的请求
@@ -207,9 +214,12 @@ export class Fetcher extends SyncEventDispatcher<{
       method: 'HEAD',
     })
   }
+  /**
+   * @alias Fetcher.head
+   */
   public HEAD = this.head
   /**
-   * 
+   * http method=options的请求
    * @param url 相对config.baseURL 中的路径
    * @param options 
    * @returns 
@@ -225,7 +235,9 @@ export class Fetcher extends SyncEventDispatcher<{
     });
   }
 }
-
+/**
+ * createFetch的参数类型
+ */
 export type CreateFetcherOptions = FetherConfig & {
   baseURL?: string,
   requestInterceptor?: RequestInterceptor[] | RequestInterceptor;
