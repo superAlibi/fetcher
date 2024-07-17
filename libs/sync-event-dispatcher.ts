@@ -1,4 +1,8 @@
 
+/**
+ * 事件监听器类型
+ * 或拦截器函数定义
+ */
 type Listener<T extends unknown[] = any[]> = ((...event: T) => Promise<unknown> | unknown);
 /**
  * 同步事件分发器

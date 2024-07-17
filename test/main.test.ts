@@ -6,6 +6,10 @@ const urlObj = new URL('https://xjm.deno.dev/api/joke', "http://localhost:300/ap
 Deno.test('test fetcher', async (t) => {
   const fetcher = createFetcher({
     baseURL: 'https://xjm.deno.dev',
+    responseInterceptor(_, requconfig) {
+      console.log(requconfig.url, requconfig.method);
+      return _
+    }
 
   })
 
@@ -15,9 +19,8 @@ Deno.test('test fetcher', async (t) => {
     }
     return event
   })
-  fetcher.addEventListener("response", (event, v) => {
-    return event.text()
-
+  fetcher.addEventListener("response", (resp) => {
+    return (resp as Response).text()
   })
   await t.step('test joke api ', async () => {
     const str = await fetcher.get<string>('/api/joke')

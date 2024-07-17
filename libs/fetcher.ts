@@ -1,20 +1,35 @@
 import { SyncEventDispatcher } from "./sync-event-dispatcher.ts";
 import { deepMerge } from '@cross/deepmerge'
 
-
+/**
+ * 请求拦截器
+ * @param req 请求配置
+ * @returns 
+ */
 export type RequestInterceptor = (
   req: InterceptorConfig,
-) => Omit<InterceptorConfig, "data"> | Promise<Omit<InterceptorConfig, "data">>;
+) => InterceptorConfig | void | Promise<InterceptorConfig | void>;
+/**
+ * 响应拦截器
+ * @param resp 原始响应对象
+ * @param reqconfig 请求配置
+ */
+export type ResponseInterceptor = (
+  resp: unknown, reqconfig: InterceptorConfig
+) => unknown | Promise<unknown>;
 
-export type ResponseInterceptor<T = unknown> = (
-  resp: Response,
-) => T | Promise<T>;
-export interface FetherConfig extends RequestInit {
 
-
-}
-export interface InterceptorConfig extends FetherConfig {
+/**
+ * 请求配置
+ */
+export interface FetherConfig extends Omit<RequestInit, 'body'> {
   params?: ConstructorParameters<typeof URLSearchParams>[number];
+  body?: BodyInit | Record<string | number, unknown>
+}
+/**
+ * 请求拦截器配置
+ */
+interface InterceptorConfig extends FetherConfig {
   url: string;
 }
 /**
@@ -26,13 +41,37 @@ export const defaultConfig: FetherConfig = {
     "Content-Type": "application/json",
   },
 };
+/**
+ * 发送请求核心class对象
+ * @example
+  * ```typescript
+  * const fetcher = createFetcher({
+  *   baseURL:"https://examp.com",
+  *   requestInterceptor(req) {
+  *     req.headers={
+  *       "Authorization": "Bearer bar"
+  *     }
+  *   }
+  *   responseInterceptor(resp, requconfig) {
+  *     const content = resp.text()
+  *     console.log(requconfig.url, requconfig.method, content);
+  *     return content
+  *   }
+  * })
+  *  
+  * fetcher.options('/api/login',{param:{q:"123"},body:{password:"123"}})
+  * 
+  * ```
+  * 这样，fetcher会使用baseURL+url拼接 成为 pathname,同时自动将param自动拼接成为search参数
+  * 请求体会自动将body自动转换为json字符串
+ */
 export class Fetcher extends SyncEventDispatcher<{
-  request: [InterceptorConfig];
-  response: [Response, InterceptorConfig];
+  request: Parameters<RequestInterceptor>;
+  response: Parameters<ResponseInterceptor>;
 }> {
   constructor(
     public baseURL: string,
-    public config: FetherConfig,
+    public config: FetherConfig = defaultConfig,
   ) {
     super();
   }
@@ -64,7 +103,7 @@ export class Fetcher extends SyncEventDispatcher<{
 
     const customConfig = (await this.dispatchEvent('request', [config])) as InterceptorConfig;
 
-    const { params, url, ...otherCustomConfig } = customConfig
+    const { params, url, body, ...otherCustomConfig } = customConfig
 
     const urlObj = new URL(
       this.getFormatedURL(url),
@@ -77,9 +116,19 @@ export class Fetcher extends SyncEventDispatcher<{
         urlObj.search = new URLSearchParams(params).toString();
       }
     }
+    const { headers } = otherCustomConfig || {}
+    const contentType = Object.fromEntries(Object.entries(headers || {}).map(([k, v]) => [k.toLowerCase(), v]))['content-type'];
+    let formatedbody: BodyInit | undefined
+    if (contentType?.toLowerCase()?.includes('application/json')) {
+      try {
+        formatedbody = JSON.stringify(body)
+      } catch {
 
+        throw new Error(`body must be json stringify,but got ${typeof body}`)
+      }
+    }
 
-    return new Request(urlObj, otherCustomConfig)
+    return new Request(urlObj, { ...otherCustomConfig, body: formatedbody })
   }
   /**
    * 构建响应体
@@ -102,7 +151,7 @@ export class Fetcher extends SyncEventDispatcher<{
     options: FetherConfig = {},
   ): Promise<T> {
     // 合并配置
-    const mergedFetchConfig = deepMerge(defaultConfig, options);
+    const mergedFetchConfig = deepMerge(this.config, options);
 
     const req: Request = await this.buildRequest({ ...mergedFetchConfig, url });
 
@@ -151,8 +200,8 @@ export class Fetcher extends SyncEventDispatcher<{
    * @param options 
    * @returns 
    */
-  public head(url: string, options: Omit<FetherConfig, "body"> = {}): Promise<Response> {
-    return this.request(url, {
+  public head<T = Response>(url: string, options: Omit<FetherConfig, "body"> = {}): Promise<T> {
+    return this.request<T>(url, {
       ...this.config,
       ...options,
       method: 'HEAD',
@@ -164,14 +213,6 @@ export class Fetcher extends SyncEventDispatcher<{
    * @param url 相对config.baseURL 中的路径
    * @param options 
    * @returns 
-   * @example
-   * ```ts
-   * const fetcher = createFetcher({baseURL:"https://examp.com"})
-   * fetcher.options('/api/login',{param:{q:"123"},data:{password:"123"}})
-   * 
-   * ```
-   * 这样，fetcher会使用baseURL+url拼接 成为 pathname,同时自动将param自动拼接成为search参数
-   * 请求体会自动将data自动转换为json字符串
    */
   public options<T = Response>(
     url: string,
@@ -185,41 +226,42 @@ export class Fetcher extends SyncEventDispatcher<{
   }
 }
 
+export type CreateFetcherOptions = FetherConfig & {
+  baseURL?: string,
+  requestInterceptor?: RequestInterceptor[] | RequestInterceptor;
+  responseInterceptor?: ResponseInterceptor[] | ResponseInterceptor;
+}
 /**
  * 辅助创建Fetcher工具函数
  * @param option 
  * @returns 
+ * @example
+ * ```
+ * const fetcher = createFetcher({baseURL:"https://examp.com"})
+ * fetcher.get("/api/login")
+ * .then(async (resp)=>{
+ *    console.log(await resp.text())
+ * })
+ * ```
  */
 export const createFetcher = (
-  option: FetherConfig & {
-    baseURL?: string,
-    requestInterceptor?: RequestInterceptor[] | RequestInterceptor;
-    responseInterceptor?: ResponseInterceptor[] | ResponseInterceptor;
-  } = { baseURL: '/' },
+  option: CreateFetcherOptions = { ...defaultConfig, baseURL: '/' },
 ): Fetcher => {
   const { baseURL = "/", requestInterceptor, responseInterceptor, ...ops } = option;
 
   const fetcher = new Fetcher(baseURL, ops);
-  if (requestInterceptor) {
-    if (Array.isArray(requestInterceptor)) {
-      requestInterceptor.forEach((interceptor) => {
 
-        fetcher.addEventListener('request', interceptor)
-      })
-    } else {
-      fetcher.addEventListener('request', requestInterceptor)
-
-    }
+  if (Array.isArray(requestInterceptor)) {
+    requestInterceptor.forEach((interceptor) => fetcher.addEventListener('request', interceptor))
+  } else if (requestInterceptor) {
+    fetcher.addEventListener('request', requestInterceptor)
   }
-  if (responseInterceptor) {
-    if (Array.isArray(responseInterceptor)) {
-      responseInterceptor.forEach((interceptor) => {
-        fetcher.addEventListener('response', interceptor)
-      })
-    } else {
 
-      fetcher.addEventListener('response', responseInterceptor)
-    }
+  if (Array.isArray(responseInterceptor)) {
+    responseInterceptor.forEach((interceptor) => fetcher.addEventListener('response', interceptor))
+  } else if (responseInterceptor) {
+    fetcher.addEventListener('response', responseInterceptor)
   }
+
   return fetcher
 };
