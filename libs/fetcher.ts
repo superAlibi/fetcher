@@ -113,7 +113,10 @@ export class Fetcher extends SyncEventDispatcher<{
       if (params instanceof URLSearchParams) {
         urlObj.search = params.toString();
       } else {
-        urlObj.search = new URLSearchParams(params).toString();
+        const formatedQuery=Object.fromEntries(
+          Object.entries(params).filter(([key, value]) => value !== undefined && value !== null)
+        )
+        urlObj.search = new URLSearchParams(formatedQuery).toString();
       }
     }
     const { headers } = otherCustomConfig || {}
