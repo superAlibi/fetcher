@@ -121,17 +121,17 @@ export class Fetcher extends SyncEventDispatcher<{
     }
     const { headers } = otherCustomConfig || {}
     const contentType = Object.fromEntries(Object.entries(headers || {}).map(([k, v]) => [k.toLowerCase(), v]))['content-type'];
-    let formatedbody: BodyInit | undefined
     if (contentType?.toLowerCase()?.includes('application/json')) {
       try {
-        formatedbody = JSON.stringify(body)
+        return new Request(urlObj, { ...otherCustomConfig, body: JSON.stringify(body) })
+
       } catch {
 
         throw new Error(`body must be json stringify,but got ${typeof body}`)
       }
     }
 
-    return new Request(urlObj, { ...otherCustomConfig, body: formatedbody })
+    return new Request(urlObj, { ...otherCustomConfig, body: body as BodyInit })
   }
   /**
    * 构建响应体
