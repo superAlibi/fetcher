@@ -1,4 +1,4 @@
-import { createFetcher } from "~/libs/fetcher.ts";
+import { createFetcher } from "../libs/fetcher.ts";
 import { assertEquals } from "$std/assert/mod.ts";
 
 const urlObj = new URL('https://xjm.deno.dev/api/joke', "http://localhost:300/api/joke")

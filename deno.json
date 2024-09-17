@@ -1,15 +1,10 @@
 {
   "name": "@advanced/fetcher",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "exports": "./mod.ts",
   "publish": {
     "exclude": [
       "test/"
     ]
-  },
-  "imports": {
-    "@cross/deepmerge": "jsr:@cross/deepmerge@^1.0.0",
-    "$std/": "https://deno.land/std@0.212.0/",
-    "~/": "./"
   }
 }

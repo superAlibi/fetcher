@@ -48,11 +48,11 @@ export class SyncEventDispatcher<EventMap extends Record<string, unknown[]>> {
   */
   public async dispatchEvent<T extends keyof EventMap, R = unknown>(type: T, data: EventMap[T]): Promise<unknown> {
     const listeners = this.events[type];
-    if (!listeners) {
+    if (!listeners || !listeners.length) {
       return data
 
     }
-    let result: unknown
+    let result: unknown = data
 
     for (const listener of listeners) {
       try {

@@ -1,5 +1,5 @@
 import { SyncEventDispatcher } from "./sync-event-dispatcher.ts";
-import { deepMerge } from '@cross/deepmerge'
+import { deepMerge } from 'deepmerge'
 
 /**
  * 请求拦截器
@@ -194,6 +194,8 @@ export class Fetcher extends SyncEventDispatcher<{
     url: string,
     options: FetherConfig = {},
   ): Promise<T> {
+    console.log(url);
+
     return this.request<T>(url, {
       ...this.config,
       ...options,
