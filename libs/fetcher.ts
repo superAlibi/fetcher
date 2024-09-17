@@ -71,9 +71,11 @@ export class Fetcher extends SyncEventDispatcher<{
 }> {
   constructor(
     public baseURL: string,
-    public config: FetherConfig = defaultConfig,
+    public config: FetherConfig,
+
   ) {
     super();
+    this.config = deepMerge(defaultConfig, config)
   }
   /**
    * 拼接基本路径和业务逻辑
@@ -194,7 +196,6 @@ export class Fetcher extends SyncEventDispatcher<{
     url: string,
     options: FetherConfig = {},
   ): Promise<T> {
-    console.log(url);
 
     return this.request<T>(url, {
       ...this.config,
